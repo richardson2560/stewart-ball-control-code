@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sbc"
+version = "30.0.0"
+description = "Stewart-Ball Control (SBC) v30 Architecture"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "pyyaml>=6.0",
+    "pyzmq>=25.0",
+    "clarabel>=0.7.1",
+    "coppeliasim-zmqremoteapi-client>=2.0.4",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]

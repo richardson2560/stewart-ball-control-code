@@ -1,0 +1,15 @@
+name: sbc-v30
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - python=3.10
+  - pip
+  - numpy>=1.24
+  - scipy>=1.10
+  - pyyaml>=6.0
+  - pyzmq>=25.0
+  - pip:
+      - coppeliasim-zmqremoteapi-client>=2.0.4
+      - cbor>=1.0.0
+      - clarabel>=0.7.1

@@ -1,0 +1,6 @@
+numpy>=1.24
+scipy>=1.10
+pyyaml>=6.0
+pyzmq>=25.0
+clarabel>=0.7.1
+coppeliasim-zmqremoteapi-client>=2.0.4
