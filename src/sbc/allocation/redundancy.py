@@ -20,8 +20,18 @@ class RedundancyResolver:
         q_max: Optional[np.ndarray] = None,
         k_center: float = 1.5,
         damping_mu_0: float = 1e-4,
-        singularity_threshold: float = 1e-3
+        singularity_threshold: float = 1e-3,
+        **kwargs
     ) -> None:
+        """
+        Args:
+            leg_stiffness: Diagonal weighting matrix K [N/m], shape (6,). Default: unity.
+            q_min: Minimum mechanical actuator strokes [m], shape (6,).
+            q_max: Maximum mechanical actuator strokes [m], shape (6,).
+            k_center: Null-space recentering gradient gain matching Eq (9.38).
+            damping_mu_0: Base Tikhonov regularization damping factor.
+            singularity_threshold: Singular value threshold sigma_sing to activate damping.
+        """
         self._K = np.ones(6, dtype=np.float64) if leg_stiffness is None else np.ascontiguousarray(leg_stiffness, dtype=np.float64)
         self._K_inv = 1.0 / self._K
 
@@ -30,13 +40,15 @@ class RedundancyResolver:
         self._q_mid = 0.5 * (self._q_min + self._q_max)
         self._stroke_span_sq = (self._q_max - self._q_min) ** 2
 
-        self._k_center: float = k_center
+        # Support both k_center (canonical) and k_leg_center (legacy)
+        self._k_center: float = kwargs.get("k_leg_center", k_center)
         self._mu_0: float = damping_mu_0
         self._sigma_sing: float = singularity_threshold
 
         self._prev_dot_q_cmd = np.zeros(6, dtype=np.float64)
 
     def reset(self) -> None:
+        """Resets differentiator cache."""
         self._prev_dot_q_cmd.fill(0.0)
 
     @staticmethod
@@ -61,10 +73,23 @@ class RedundancyResolver:
         dot_theta_d: float,
         dot_psi_0: float,
         q_meas: np.ndarray,
-        dt: float
+        dt: float,
+        **kwargs
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Synthesizes leg positions, velocities, and accelerations matching Eq (9.35 - 9.42).
+
+        Args:
+            kinematics: StewartKinematics instance for scene geometry.
+            phi_d, theta_d, psi_d: Desired orientation angles [rad].
+            dot_phi_d, dot_theta_d, dot_psi_0: Desired angular rates [rad/s].
+            q_meas: Current measured leg positions [m], shape (6,).
+            dt: Control period Ts [s].
+
+        Returns:
+            q_cmd: Safe desired leg lengths [m], shape (6,)
+            dot_q_cmd: Desired leg velocities [m/s], shape (6,)
+            ddot_q_cmd: Desired leg accelerations [m/s^2], shape (6,)
         """
         # 1. Platform-centered geometric inverse kinematics for position target
         q_cmd_geom, _, _ = kinematics.inverse_kinematics(phi_d, theta_d, psi_d, kinematics.T_p_nominal)
@@ -106,7 +131,6 @@ class RedundancyResolver:
         dot_q_cmd = dot_q_task + dot_q_null
 
         # 6. Combined position command with null-space stroke adjustment
-        # Integrates null-space centering velocity onto the exact geometric position
         q_cmd = q_cmd_geom + dot_q_null * dt
 
         # Analytical acceleration
@@ -114,3 +138,6 @@ class RedundancyResolver:
         self._prev_dot_q_cmd = dot_q_cmd.copy()
 
         return q_cmd, dot_q_cmd, ddot_q_cmd
+
+    # Backwards-compatible alias for resolve_with_authority
+    resolve_with_authority = resolve
