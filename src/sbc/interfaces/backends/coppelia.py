@@ -4,7 +4,7 @@ import os
 import sys
 import time
 import numpy as np
-from typing import Optional, List
+from typing import Optional, List, Tuple
 
 from sbc.interfaces.base_backend import BasePlatformBackend
 from sbc.datatypes import (
@@ -234,6 +234,42 @@ class CoppeliaBackend(BasePlatformBackend):
         except Exception:
             self._status = PlatformStatus.FAULT
             return False
+
+    def extract_kinematic_parameters(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """
+        Extracts base anchors b_i, platform anchors a_i, leg length offsets,
+        and initial platform translation directly from CoppeliaSim scene objects.
+        """
+        if self._status != PlatformStatus.OPERATIONAL:
+            raise RuntimeError("Backend must be connected before extracting parameters.")
+
+        T_p_initial = np.array(self._sim.getObjectPosition(self._h_plate, self._h_base), dtype=np.float64)
+
+        b_anchors = []
+        p_anchors = []
+        l_offsets = []
+
+        for i in range(6):
+            # Base anchor in base frame
+            b_i = np.array(self._sim.getObjectPosition(self._h_motors[i], self._h_base), dtype=np.float64)
+            b_anchors.append(b_i)
+
+            # Platform anchor in plate frame P
+            a_i = np.array(self._sim.getObjectPosition(self._h_tips[i], self._h_plate), dtype=np.float64)
+            p_anchors.append(a_i)
+
+            # Measure initial physical distance vs initial motor reading
+            tip_pos_base = np.array(self._sim.getObjectPosition(self._h_tips[i], self._h_base), dtype=np.float64)
+            L_init = float(np.linalg.norm(tip_pos_base - b_i))
+            q_init = float(self._sim.getJointPosition(self._h_motors[i]))
+            l_offsets.append(L_init - q_init)
+
+        return (
+            np.array(b_anchors, dtype=np.float64),
+            np.array(p_anchors, dtype=np.float64),
+            np.array(l_offsets, dtype=np.float64),
+            T_p_initial
+        )
 
     def disconnect(self) -> None:
         """Stops simulation and clears remote environment."""
