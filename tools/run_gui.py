@@ -23,6 +23,7 @@ from sbc.actuation.joint_lead_comp import SafeJointTrajectoryIntegrator
 from sbc.core.supervisor import Supervisor, SupervisorInputs
 from sbc.datatypes import SupervisorMode
 from sbc.gui.dashboard import TelemetryDashboard
+from sbc.config import load_controller_config
 
 
 class FastAttitudeFilter:
@@ -158,7 +159,12 @@ class ControlThread(threading.Thread):
                 t = sensor_data.timestamp
 
                 # 3. PERCEPTION
-                rho_clean = tactile_proc.process(sensor_data.tactile_pos_raw, sensor_data.tactile_force_estimate, vel_est)
+                rho_clean = tactile_proc.process(
+                    sensor_data.tactile_pos_raw,
+                    sensor_data.tactile_force_estimate,
+                    vel_est,
+                    is_geometric=backend.tactile_position_kind == "geometric_projection"
+                )
                 
                 motion_measurement = self.backend.read_platform_motion()
                 has_pose_feedback = motion_measurement is not None
@@ -513,7 +519,9 @@ def main() -> None:
                 "Close the old instance or use --no-auto-launch --port with the "
                 "port printed by the intended Coppelia instance."
             )
-        process = CoppeliaLauncher.start(scene_name="stewart_platform.ttt", headless=True)
+        controller_config = load_controller_config()
+        scene_name = controller_config["coppelia"]["scene_name"]
+        process = CoppeliaLauncher.start(scene_name=scene_name, headless=True)
         time.sleep(2.5)
 
     config = {
@@ -521,7 +529,13 @@ def main() -> None:
         "ball_mass":0.065449846949792,
         "ball_radius": 0.025,
         "gravity": 9.81,
-        "coppelia": {"host": "localhost", "port": args.port}
+        "coppelia": {
+            "host": "localhost",
+            "port": args.port,
+            "joint_command_mode": "kinematic",
+            "actuator_mode": "CSP",
+            "scene_name": "stewart_platform_ideal.ttt",
+        }
     }
     backend = BackendFactory.create("coppelia", config)
 

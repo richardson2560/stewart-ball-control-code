@@ -24,7 +24,7 @@ class BackendFactory:
                 ball_mass=config.get("ball_mass", 0.065449846949792),
                 ball_radius=config.get("ball_radius", 0.025),
                 gravity=config.get("gravity", 9.81),
-                joint_command_mode=sim_cfg.get("joint_command_mode", "dynamic"),
+                joint_command_mode=sim_cfg.get("joint_command_mode", "kinematic"),
                 kinematic_closure_tolerance=sim_cfg.get(
                     "kinematic_closure_tolerance", 5e-4
                 ),

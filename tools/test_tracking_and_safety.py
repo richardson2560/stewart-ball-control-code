@@ -89,7 +89,10 @@ def main() -> None:
 
     process = None
     if not args.no_auto_launch:
-        process = CoppeliaLauncher.start(scene_name="stewart_platform.ttt", headless=not args.gui)
+        process = CoppeliaLauncher.start(
+            scene_name="stewart_platform_ideal.ttt",
+            headless=not args.gui
+        )
         time.sleep(2.5)
 
     BALL_MASS = 0.065449846949792
@@ -101,7 +104,12 @@ def main() -> None:
         "ball_mass": BALL_MASS,
         "ball_radius": BALL_RADIUS,
         "gravity": GRAVITY,
-        "coppelia": {"host": "localhost", "port": 23000}
+        "coppelia": {
+            "host": "localhost",
+            "port": 23000,
+            "joint_command_mode": "kinematic",
+            "actuator_mode": "CSP",
+        }
     }
     backend = BackendFactory.create("coppelia", config)
 
@@ -129,7 +137,7 @@ def main() -> None:
         safety_filter = ClarabelSafetyFilter(
             ball_mass=BALL_MASS,
             ball_radius=BALL_RADIUS,
-            plate_radius=0.45,
+            plate_radius=0.25,
             q_min=q_limit_min,
             q_max=q_limit_max,
         ) if args.safety else None
@@ -176,7 +184,12 @@ def main() -> None:
             t = sensor_data.timestamp
 
             # A. PERCEPTION: Tactile CoP compensation + Hermite-GP Causal Filtering
-            rho_clean = tactile_proc.process(sensor_data.tactile_pos_raw, sensor_data.tactile_force_estimate, vel_est)
+            rho_clean = tactile_proc.process(
+                sensor_data.tactile_pos_raw,
+                sensor_data.tactile_force_estimate,
+                vel_est,
+                is_geometric=backend.tactile_position_kind == "geometric_projection"
+            )
             
             motion_measurement = backend.read_platform_motion()
             has_pose_feedback = motion_measurement is not None

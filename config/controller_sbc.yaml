@@ -1,0 +1,40 @@
+physics:
+  gravity: 9.81
+  cycle_time: 0.002
+  ball:
+    mass: 0.065449846949792
+    radius: 0.025
+    kappa_I: 0.40
+    lambda_0: 0.7142857142857143
+    rolling_resistance_c_rr: 0.0015
+  platform:
+    plate_radius: 0.25
+    nominal_height: 0.40
+
+control:
+  kp: 6.5
+  kd: 2.8
+  reference_model:
+    omega_n: 8.0
+    zeta: 1.0
+    max_acceleration: 2.5
+  allocation:
+    max_roll_deg: 16.0
+    max_pitch_deg: 16.0
+    max_yaw_deg: 15.0
+    max_translation_offset: 0.060
+    max_translation_velocity: 0.35
+    max_translation_acceleration: 3.0
+    max_translation_jerk: 80.0
+
+safety_filter:
+  friction_coeff: 0.35
+  friction_interior_ratio: 0.80
+  min_normal_force: 0.10
+  alpha_ecbf: 6.0
+  max_leg_acceleration: 8.0
+
+coppelia:
+  scene_name: stewart_platform_ideal.ttt
+  joint_command_mode: kinematic
+  actuator_mode: CSP

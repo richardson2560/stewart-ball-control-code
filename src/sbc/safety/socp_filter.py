@@ -24,7 +24,7 @@ class ClarabelSafetyFilter:
         friction_coeff: float = 0.35,
         friction_interior_ratio: float = 0.80,
         min_normal_force: float = 0.10,
-        plate_radius: float = 0.45,
+        plate_radius: float = 0.25,
         q_min: Optional[np.ndarray] = None,
         q_max: Optional[np.ndarray] = None,
         gravity: float = 9.81,

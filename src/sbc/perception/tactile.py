@@ -7,7 +7,8 @@ class TactileProcessor:
     """
     Preprocesses raw tactile surface readings.
     Compensates for the Center of Pressure (CoP) displacement induced by
-    rolling resistance deformation: delta_p = c_rr(N) * r * (v / ||v||).
+    rolling resistance deformation only for physical pressure-distribution
+    measurements. Geometric projections already identify the ball center.
     Validates unilateral contact threshold N >= F_act.
     """
 
@@ -55,7 +56,8 @@ class TactileProcessor:
         self,
         tactile_pos_raw: np.ndarray,
         normal_force: float,
-        current_vel_est: np.ndarray
+        current_vel_est: np.ndarray,
+        is_geometric: bool = False
     ) -> np.ndarray:
         """
         Validates contact and strips CoP bias to recover the true sphere contact point rho.
@@ -64,6 +66,8 @@ class TactileProcessor:
             tactile_pos_raw: Raw sensor coordinate in P [m], shape (2,).
             normal_force: Estimated normal reaction N [N].
             current_vel_est: Filtered ball relative velocity estimate v_rel [m/s], shape (2,).
+            is_geometric: True when the position is a geometric projection
+                rather than a physical CoP measurement.
 
         Returns:
             rho: True contact point coordinate on the platform [m], shape (2,).
@@ -74,9 +78,11 @@ class TactileProcessor:
             # When contact is lost or force is below detection, retain last known coordinate
             return self._last_valid_pos.copy()
 
-        # Deduct CoP displacement
-        cop_bias = self.compute_cop_bias(current_vel_est, normal_force)
-        rho = tactile_pos_raw - cop_bias
+        if is_geometric:
+            rho = np.asarray(tactile_pos_raw, dtype=np.float64)
+        else:
+            cop_bias = self.compute_cop_bias(current_vel_est, normal_force)
+            rho = np.asarray(tactile_pos_raw, dtype=np.float64) - cop_bias
 
         self._last_valid_pos = rho.copy()
         return rho
