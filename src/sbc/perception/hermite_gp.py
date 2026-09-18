@@ -25,6 +25,11 @@ class HermiteGPFilter:
         self._buf_pos = np.zeros((self._n, 2), dtype=np.float64)
         self._buf_yaw = np.zeros(self._n, dtype=np.float64)
         self._count: int = 0
+        self._yaw_count: int = 0
+        self._dropout_active: bool = False
+        self._reinitialized: bool = False
+        self._last_position = np.zeros(2, dtype=np.float64)
+        self._last_velocity = np.zeros(2, dtype=np.float64)
 
         # Weights: w_val for smoothing (d=0), w_der for derivative (d=1)
         self._w_val: np.ndarray = np.zeros(self._n, dtype=np.float64)
@@ -60,11 +65,25 @@ class HermiteGPFilter:
         self._buf_pos.fill(0.0)
         self._buf_yaw.fill(0.0)
         self._count = 0
+        self._yaw_count = 0
+        self._dropout_active = False
+        self._reinitialized = False
+        self._last_position.fill(0.0)
+        self._last_velocity.fill(0.0)
+
+    @property
+    def dropout_active(self) -> bool:
+        return self._dropout_active
+
+    @property
+    def reinitialized(self) -> bool:
+        return self._reinitialized
 
     def update(
         self,
         ball_pos_raw: np.ndarray,
-        yaw_rate_raw: float
+        yaw_rate_raw: float,
+        measurement_valid: bool = True,
     ) -> Tuple[np.ndarray, np.ndarray, float, float]:
         """
         Pushes new raw observations and computes smoothed states and causal derivatives.
@@ -79,12 +98,56 @@ class HermiteGPFilter:
             yaw_smoothed: Filtered body yaw rate Omega_z [rad/s]
             alpha_z_estimated: Estimated body yaw acceleration alpha_z [rad/s^2]
         """
-        # Roll buffer left and insert newest sample at the rightmost index (tau = 0)
-        self._buf_pos[:-1] = self._buf_pos[1:]
-        self._buf_pos[-1] = ball_pos_raw
+        ball_pos_raw = np.asarray(ball_pos_raw, dtype=np.float64)
+        if ball_pos_raw.shape != (2,) or not np.all(np.isfinite(ball_pos_raw)):
+            raise ValueError("ball_pos_raw must be a finite 2-vector.")
+        if not np.isfinite(yaw_rate_raw):
+            raise ValueError("yaw_rate_raw must be finite.")
+        self._reinitialized = False
 
+        # Yaw is a platform measurement and remains valid independently of
+        # tactile contact, so it has its own sample counter.
         self._buf_yaw[:-1] = self._buf_yaw[1:]
         self._buf_yaw[-1] = yaw_rate_raw
+        self._yaw_count += 1
+        if self._yaw_count < self._n:
+            yaw_smoothed = float(np.mean(self._buf_yaw[-self._yaw_count:]))
+            alpha_z_estimated = 0.0
+        else:
+            yaw_smoothed = float(np.dot(self._w_val, self._buf_yaw))
+            alpha_z_estimated = float(np.dot(self._w_der, self._buf_yaw))
+
+        # Missing tactile samples are not repeated into a uniformly sampled
+        # FIR window.  Doing so creates a false zero-velocity segment and an
+        # impulsive derivative at recontact.
+        if not measurement_valid:
+            self._dropout_active = True
+            return (
+                self._last_position.copy(),
+                np.zeros(2, dtype=np.float64),
+                yaw_smoothed,
+                alpha_z_estimated,
+            )
+
+        if self._dropout_active:
+            # Restart the position warm-up on the new contact epoch.  Velocity
+            # stays explicitly untrusted/zero until a uniform window exists.
+            self._buf_pos[:] = ball_pos_raw
+            self._count = 1
+            self._dropout_active = False
+            self._reinitialized = True
+            self._last_position = ball_pos_raw.copy()
+            self._last_velocity.fill(0.0)
+            return (
+                self._last_position.copy(),
+                self._last_velocity.copy(),
+                yaw_smoothed,
+                alpha_z_estimated,
+            )
+
+        # Roll valid tactile data and insert the newest uniformly timed sample.
+        self._buf_pos[:-1] = self._buf_pos[1:]
+        self._buf_pos[-1] = ball_pos_raw
 
         self._count += 1
 
@@ -94,15 +157,14 @@ class HermiteGPFilter:
             weights_val = self._w_val[-fill:] / np.sum(self._w_val[-fill:])
             pos_smoothed = np.sum(self._buf_pos[-fill:] * weights_val[:, np.newaxis], axis=0)
             vel_estimated = np.zeros(2, dtype=np.float64)
-            yaw_smoothed = float(np.mean(self._buf_yaw[-fill:]))
-            alpha_z_estimated = 0.0
+            self._last_position = pos_smoothed.copy()
+            self._last_velocity = vel_estimated.copy()
             return pos_smoothed, vel_estimated, yaw_smoothed, alpha_z_estimated
 
         # Dot product evaluations: O(n_FIR) operations
         pos_smoothed = np.dot(self._w_val, self._buf_pos)
         vel_estimated = np.dot(self._w_der, self._buf_pos)
 
-        yaw_smoothed = float(np.dot(self._w_val, self._buf_yaw))
-        alpha_z_estimated = float(np.dot(self._w_der, self._buf_yaw))
-
+        self._last_position = pos_smoothed.copy()
+        self._last_velocity = vel_estimated.copy()
         return pos_smoothed, vel_estimated, yaw_smoothed, alpha_z_estimated

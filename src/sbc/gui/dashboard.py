@@ -364,6 +364,8 @@ class TelemetryDashboard(tk.Tk):
         tilt = data["tilt"]
         n_force = data["normal_force"]
         is_safe = data["safety_ok"]
+        supervisor_mode = data.get("supervisor_mode", "UNKNOWN")
+        safety_reason = data.get("safety_reason", "unknown")
         
         # Extract platform origin translation and velocity
         p_trans = data.get("platform_trans", [0.0, 0.0, 0.0])
@@ -389,10 +391,19 @@ class TelemetryDashboard(tk.Tk):
         else:
             self.lbl_contact.config(text=f"Normal Force: {n_force:.3f} N [DETACHED]", foreground=self.accent_red)
 
-        if is_safe:
+        if is_safe and supervisor_mode == "RELAXED_DEGRADED":
+            self.lbl_safety.config(
+                text="Safety Filter: SOCP [RECOVERY]",
+                foreground=self.accent_yellow,
+            )
+        elif is_safe:
             self.lbl_safety.config(text="Safety Filter: SOCP [OK]", foreground=self.accent_green)
         else:
-            self.lbl_safety.config(text="Safety Filter: [FALLBACK]", foreground=self.accent_red)
+            reason = str(safety_reason).split(":", 1)[0]
+            self.lbl_safety.config(
+                text=f"Safety Filter: [FALLBACK: {reason}]",
+                foreground=self.accent_red,
+            )
 
         # Buffers
         self.t_hist.append(t)

@@ -19,7 +19,7 @@ class SBCFullController(BaseController):
         self,
         kp: float = 6.5,
         kd: float = 2.8,
-        ball_mass: float = 0.110,
+        ball_mass: float = 0.065449846949792,
         ball_radius: float = 0.025,
         inertia_ratio_lambda0: float = 5.0 / 7.0,
         rolling_resistance_coeff: float = 0.0015,

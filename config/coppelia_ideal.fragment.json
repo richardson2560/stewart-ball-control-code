@@ -1,0 +1,36 @@
+{
+  "cycle_time": 0.002,
+  "ball_mass": 0.065449846949792,
+  "ball_radius": 0.025,
+  "gravity": 9.81,
+  "coppelia": {
+    "joint_command_mode": "kinematic",
+    "actuator_mode": "CSP",
+    "kinematic_closure_tolerance": 0.0005,
+    "shutdown_timeout": 2.0,
+    "scene": {
+      "base": "/stewartPlatform",
+      "plate_frame": "/stewartPlatform/tip",
+      "surface": "/platformTable",
+      "ball": "/Sphere",
+      "motor_length_signs": [1, 1, 1, 1, 1, 1],
+      "base_anchors": [
+        "/stewartPlatform/baseAnchor2",
+        "/stewartPlatform/baseAnchor3",
+        "/stewartPlatform/baseAnchor4",
+        "/stewartPlatform/baseAnchor5",
+        "/stewartPlatform/baseAnchor6",
+        "/stewartPlatform/baseAnchor1"
+      ],
+      "platform_anchors": [
+        "/stewartPlatform/tip/platformAnchor2",
+        "/stewartPlatform/tip/platformAnchor3",
+        "/stewartPlatform/tip/platformAnchor4",
+        "/stewartPlatform/tip/platformAnchor5",
+        "/stewartPlatform/tip/platformAnchor6",
+        "/stewartPlatform/tip/platformAnchor1"
+      ]
+    }
+  }
+}
+

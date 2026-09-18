@@ -1,0 +1,22 @@
+cycle_time: 0.002
+controller:
+  kp: 6.5
+  kd: 2.8
+  lambda_0: 0.7142857142857143
+allocation:
+  max_roll_deg: 16.0
+  max_pitch_deg: 16.0
+  max_translation_acceleration: 3.0
+  max_translation_jerk: 80.0
+  max_translation_velocity: 0.35
+  max_translation_offset: 0.06
+safety:
+  max_leg_acceleration: 8.0
+  contact_margin: null       # Must be released from calibration before certified runs.
+  friction_margin: null
+  domain_margin: null
+  stroke_margins: null
+coppelia:
+  joint_command_mode: kinematic
+  # Tube for IK/contact closure residual. The supplied scene exhibits 72.94 um.
+  kinematic_closure_tolerance: 0.015

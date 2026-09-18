@@ -56,9 +56,23 @@ class HurwitzReferenceModel:
 
     def reset(self, initial_pos: np.ndarray, initial_vel: Optional[np.ndarray] = None) -> None:
         """Resets the reference generator state to match initial boundary conditions."""
-        self._rho_d = np.ascontiguousarray(initial_pos, dtype=np.float64)
-        self._dot_rho_d = np.zeros(2, dtype=np.float64) if initial_vel is None else np.ascontiguousarray(initial_vel, dtype=np.float64)
-        self._ddot_rho_d.fill(0.0)
+        initial_pos = np.asarray(initial_pos, dtype=np.float64)
+        if initial_pos.shape != (2,) or not np.all(np.isfinite(initial_pos)):
+            raise ValueError("initial_pos must be a finite vector with shape (2,).")
+        if initial_vel is not None:
+            initial_vel = np.asarray(initial_vel, dtype=np.float64)
+            if initial_vel.shape != (2,) or not np.all(np.isfinite(initial_vel)):
+                raise ValueError("initial_vel must be a finite vector with shape (2,).")
+
+        # Boundary packets are intentionally read-only.  The reference model
+        # owns mutable state, so it must never retain the packet's buffer.
+        self._rho_d = np.array(initial_pos, dtype=np.float64, copy=True)
+        self._dot_rho_d = (
+            np.zeros(2, dtype=np.float64)
+            if initial_vel is None
+            else np.array(initial_vel, dtype=np.float64, copy=True)
+        )
+        self._ddot_rho_d = np.zeros(2, dtype=np.float64)
 
     def update(
         self,
